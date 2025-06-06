@@ -1,0 +1,56 @@
+#
+# This file configures the New Relic Agent.
+#
+# For full documentation of agent configuration options, please refer to
+# https://docs.newrelic.com/docs/agents/ruby-agent/configuration/ruby-agent-configuration/
+
+common: &default_settings
+  # Required license key
+  license_key: <%= ENV['NEW_RELIC_LICENSE_KEY'] %>
+
+  # Your application name
+  app_name: <%= ENV['NEW_RELIC_APP_NAME'] %>
+
+  # To disable the agent regardless of other settings, uncomment the following:
+  # agent_enabled: false
+
+  # Logging level for log/newrelic_agent.log
+  log_level: info
+
+  # The SSL certificate verification mode for connecting to New Relic
+  # Valid values are 'verify_peer' (default) and 'verify_none'
+  verify_certificate: verify_peer
+
+  # Transaction tracer configuration
+  transaction_tracer:
+    # Transaction tracer threshold in seconds
+    transaction_threshold: 0.5
+    record_sql: obfuscated
+    stack_trace_threshold: 0.5
+
+  # Error collector captures information about uncaught exceptions
+  error_collector:
+    enabled: true
+    ignore_errors: ActionController::RoutingError,Sinatra::NotFound
+
+  # Browser monitoring
+  browser_monitoring:
+    auto_instrument: false
+
+  # Distributed tracing
+  distributed_tracing:
+    enabled: true
+
+# Environment-specific settings
+development:
+  <<: *default_settings
+  app_name: <%= ENV['NEW_RELIC_APP_NAME'] %> (Development)
+  monitor_mode: false
+
+test:
+  <<: *default_settings
+  app_name: <%= ENV['NEW_RELIC_APP_NAME'] %> (Test)
+  monitor_mode: false
+
+production:
+  <<: *default_settings

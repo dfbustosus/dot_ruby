@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # API application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4567:4567"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/api_production
+      - REDIS_URL=redis://redis:6379/0
+      - SESSION_SECRET=change_me_in_production
+      - PORT=4567
+      - HOST=0.0.0.0
+      - RACK_ENV=production
+      - LOG_LEVEL=info
+      - RATE_LIMIT=100
+    volumes:
+      - ./log:/app/log
+      - ./db/backups:/app/db/backups
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4567/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=api_production
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and background jobs
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Sidekiq for background jobs
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bundle exec sidekiq -c ${SIDEKIQ_CONCURRENCY:-5} -r ./config/application.rb
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/api_production
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=info
+    volumes:
+      - ./log:/app/log
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
